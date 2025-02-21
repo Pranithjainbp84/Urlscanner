@@ -3,22 +3,105 @@ import re
 import requests
 import pandas as pd
 import os
+import csv
+from datetime import datetime
+
+# Initialize CSV file
+def init_csv():
+    if not os.path.exists("scanned_urls.csv"):
+        with open("scanned_urls.csv", "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["URL", "Status", "Timestamp"])
 
 # Replace with your own API details
-API_ID = '27944145'  # API_ID must be an integer
+API_ID = 27944145  # API_ID as integer
 API_HASH = '669a4a6b97530be26832ae4bf1d40ef1'  # API_HASH is a string
 BOT_TOKEN = '8125290746:AAExNaYE-lSIeed_FxRPInhZjFPp0gyQSXs'  # BOT_TOKEN is a string
 
 # Create Telegram bot client
 client = TelegramClient('bot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# Function to scan URLs with VirusTotal
+# Domain blacklist checker
+def check_domain_blacklist(domain):
+    # Known malicious domain patterns and TLDs
+    blacklisted_patterns = [
+        'phishing', 'scam', 'malware', 'hack',
+        'security', 'login', 'account', 'verify',
+        'suspicious', 'prize', 'winner'
+    ]
+    suspicious_tlds = ['.xyz', '.tk', '.ml', '.ga', '.cf', '.gq', '.top']
+    
+    domain = domain.lower()
+    
+    # Check for blacklisted patterns
+    for pattern in blacklisted_patterns:
+        if pattern in domain:
+            return f"⚠️ Domain contains suspicious pattern: {pattern}"
+            
+    # Check TLD
+    if any(domain.endswith(tld) for tld in suspicious_tlds):
+        return "⚠️ Domain uses suspicious TLD"
+        
+    return None
+
+async def enhanced_security_check(url):
+    try:
+        # Check domain reputation
+        domain = url.split('/')[2]
+        
+        # DNS checks
+        try:
+            import dns.resolver
+            answers = dns.resolver.resolve(domain, 'A')
+            ip = answers[0].to_text()
+            
+            # Check if IP is in known blacklists
+            if ip in ['127.0.0.1', '0.0.0.0']:  # Example blacklist
+                return "Suspicious IP detected"
+        except:
+            pass
+            
+        return None
+    except Exception as e:
+        print(f"Error in security check: {e}")
+        return None
+
 def scan_virustotal(url):
-    params = {'apikey': 'fff46419e2e3b81e12649cb53d2d4f225584a98981739974eb31b4f8e32cceea', 'resource': url}
-    response = requests.get('https://www.virustotal.com/vtapi/v2/url/report', params=params)
-    if response.json().get('positives', 0) > 2:
-        return "⚠️ Malicious Link Detected!"
-    return "✅ Link is safe."
+    try:
+        # Check domain blacklist first
+        domain = url.split('/')[2]
+        blacklist_result = check_domain_blacklist(domain)
+        
+        params = {'apikey': 'fff46419e2e3b81e12649cb53d2d4f225584a98981739974eb31b4f8e32cceea', 'resource': url}
+        response = requests.get('https://www.virustotal.com/vtapi/v2/url/report', params=params)
+        json_response = response.json()
+        
+        positives = json_response.get('positives', 0)
+        scans = json_response.get('scans', {})
+        
+        # Check for phishing specifically
+        phishing_detected = any(
+            scan.get('result', '').lower() in ['phishing', 'malicious', 'malware', 'suspicious']
+            for scan in scans.values()
+        )
+        
+        if phishing_detected or positives > 0:
+            result = "⚠️ Warning: Potentially Malicious/Phishing Link Detected!"
+        else:
+            result = "✅ Link appears safe"
+            
+        details = f"(Detection rate: {positives}/{len(scans) if scans else 'N/A'})"
+        full_result = f"{result} {details}"
+        
+        # Save to CSV
+        with open("scanned_urls.csv", "a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([url, full_result, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        
+        return full_result
+    except Exception as e:
+        print(f"Error scanning URL: {e}")
+        return "❌ Error scanning URL"
 
 # Command Handlers
 
@@ -42,23 +125,68 @@ async def help(event):
     await event.reply(help_text)
 
 # /scan Command
-@client.on(events.NewMessage(pattern='/scan (https?://\S+)'))
+@client.on(events.NewMessage(pattern='/scan'))
 async def scan_url(event):
-    url = event.pattern_match.group(1)
-    result = scan_virustotal(url)
-    await event.reply(result)
+    try:
+        message = event.message.text
+        if len(message.split()) < 2:
+            await event.reply("Please provide a URL to scan. Usage: /scan <URL>")
+            return
+            
+        url = message.split()[1]
+        if not url.startswith(('http://', 'https://')):
+            await event.reply("Please provide a valid URL starting with http:// or https://")
+            return
+            
+        result = scan_virustotal(url)
+        await event.reply(f"Scanning: {url}\nResult: {result}")
+    except Exception as e:
+        await event.reply(f"Error processing URL: {str(e)}")
 
 # /history Command
 @client.on(events.NewMessage(pattern='/history'))
 async def history(event):
     try:
-        df = pd.read_csv("scanned_urls.csv")
-        history_text = "Previously Scanned URLs:\n"
-        for index, row in df.iterrows():
-            history_text += f"{row['URL']} - {row['Status']}\n"
+        if not os.path.exists("scanned_urls.csv"):
+            await event.reply("No scan history available yet. Use /scan to check URLs.")
+            return
+            
+        try:
+            df = pd.read_csv("scanned_urls.csv")
+        except pd.errors.EmptyDataError:
+            await event.reply("No scan history available yet. Use /scan to check URLs.")
+            return
+        except pd.errors.ParserError:
+            await event.reply("Error: History file is corrupted. Use /reset to clear history.")
+            return
+            
+        if df.empty:
+            await event.reply("No scan history available yet. Use /scan to check URLs.")
+            return
+            
+        history_text = "📋 Recently Scanned URLs:\n\n"
+        for index, row in df.tail(10).iterrows():
+            try:
+                url = str(row['URL']).strip()
+                status = str(row['Status']).strip()
+                timestamp = str(row['Timestamp']).strip() if 'Timestamp' in row else "N/A"
+                
+                if url and status:
+                    history_text += f"🔗 {url}\n"
+                    history_text += f"📊 Status: {status}\n"
+                    history_text += f"⏰ {timestamp}\n"
+                    history_text += "---------------\n"
+            except KeyError:
+                continue
+        
+        if history_text == "📋 Recently Scanned URLs:\n\n":
+            await event.reply("No valid scan history available.")
+            return
+            
         await event.reply(history_text)
-    except FileNotFoundError:
-        await event.reply("No scan history available.")
+    except Exception as e:
+        print(f"Error in history command: {e}")
+        await event.reply("An error occurred while fetching scan history. Please try again later.")
 
 # /status Command
 @client.on(events.NewMessage(pattern='/status'))
@@ -90,6 +218,9 @@ async def about(event):
     )
     await event.reply(about_text)
 
-# Run the bot
+
+
+# Initialize and run the bot
+init_csv()
 print("Bot is running...")
 client.run_until_disconnected()
