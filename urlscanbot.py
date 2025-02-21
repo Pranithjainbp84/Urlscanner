@@ -14,9 +14,9 @@ def init_csv():
             writer.writerow(["URL", "Status", "Timestamp"])
 
 # Replace with your own API details
-API_ID = 27944145  # API_ID as integer
-API_HASH = '669a4a6b97530be26832ae4bf1d40ef1'  # API_HASH is a string
-BOT_TOKEN = '8125290746:AAExNaYE-lSIeed_FxRPInhZjFPp0gyQSXs'  # BOT_TOKEN is a string
+API_ID = 'YOUR_API_ID'  # API_ID as integer
+API_HASH = 'YOUR_API_HASH'  # API_HASH is a string
+BOT_TOKEN = 'YOUR_BOT_TOKEN'  # BOT_TOKEN is a string
 
 # Create Telegram bot client
 client = TelegramClient('bot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -72,7 +72,7 @@ def scan_virustotal(url):
         domain = url.split('/')[2]
         blacklist_result = check_domain_blacklist(domain)
         
-        params = {'apikey': 'fff46419e2e3b81e12649cb53d2d4f225584a98981739974eb31b4f8e32cceea', 'resource': url}
+        params = {'apikey': 'YOUR_VIRUSTOTAL_KEY', 'resource': url}
         response = requests.get('https://www.virustotal.com/vtapi/v2/url/report', params=params)
         json_response = response.json()
         
