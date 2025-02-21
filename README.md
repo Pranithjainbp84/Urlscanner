@@ -49,7 +49,7 @@ This project is licensed under the MIT License.
 
 Contact
 For support or questions, reach out to:
-Email: support@example.com
+Email: pranithjainbp84@gmail.com
 
 Enjoy using UrlScanner Bot! 🚀
 
