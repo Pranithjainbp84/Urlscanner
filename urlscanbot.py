@@ -5,12 +5,7 @@ import csv
 import pandas as pd
 
 # Replace with your own API details
-API_ID = 'MIIBCgKCAQEAyMEdY1aR+sCR3ZSJrtztKTKqigvO/vBfqACJLZtS7QMgCGXJ6XIR
-yy7mx66W0/sOFa7/1mAZtEoIokDP3ShoqF4fVNb6XeqgQfaUHd8wJpDWHcR2OFwv
-plUUI1PLTktZ9uW2WE23b+ixNwJjJGwBDJPQEQFBE+vfmH0JP503wr5INS1poWg/
-j25sIWeYPHYeOrFp/eXaqhISP6G+q2IeTaWTXpwZj4LzXq5YOpk4bYEQ6mvRq7D1
-aHWfYmlEGepfaYR8Q0YqvvhYtMte3ITnuSJs171+GDqpdKcSwHnd6FudwGO4pcCO
-j4WcDuXc2CTHgH8gFTNhp/Y8/SpDOhvn9QIDAQAB'  # Get this from https://my.telegram.org/apps
+API_ID = '27944145'  # Get this from https://my.telegram.org/apps
 API_HASH = '669a4a6b97530be26832ae4bf1d40ef1'
 BOT_TOKEN = '8125290746:AAExNaYE-lSIeed_FxRPInhZjFPp0gyQSXs'  # API Token from BotFather
 
