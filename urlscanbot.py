@@ -14,35 +14,12 @@ def init_csv():
             writer.writerow(["URL", "Status", "Timestamp"])
 
 # Replace with your own API details
-API_ID = 'YOUR_API_ID'  # API_ID as integer
-API_HASH = 'YOUR_API_HASH'  # API_HASH is a string
-BOT_TOKEN = 'YOUR_BOT_TOKEN'  # BOT_TOKEN is a string
+API_ID = 27944145  # API_ID as integer
+API_HASH = '669a4a6b97530be26832ae4bf1d40ef1'  # API_HASH is a string
+BOT_TOKEN = '8125290746:AAExNaYE-lSIeed_FxRPInhZjFPp0gyQSXs'  # BOT_TOKEN is a string
 
 # Create Telegram bot client
 client = TelegramClient('bot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-
-# Domain blacklist checker
-def check_domain_blacklist(domain):
-    # Known malicious domain patterns and TLDs
-    blacklisted_patterns = [
-        'phishing', 'scam', 'malware', 'hack',
-        'security', 'login', 'account', 'verify',
-        'suspicious', 'prize', 'winner'
-    ]
-    suspicious_tlds = ['.xyz', '.tk', '.ml', '.ga', '.cf', '.gq', '.top']
-    
-    domain = domain.lower()
-    
-    # Check for blacklisted patterns
-    for pattern in blacklisted_patterns:
-        if pattern in domain:
-            return f"⚠️ Domain contains suspicious pattern: {pattern}"
-            
-    # Check TLD
-    if any(domain.endswith(tld) for tld in suspicious_tlds):
-        return "⚠️ Domain uses suspicious TLD"
-        
-    return None
 
 async def enhanced_security_check(url):
     try:
@@ -68,11 +45,7 @@ async def enhanced_security_check(url):
 
 def scan_virustotal(url):
     try:
-        # Check domain blacklist first
-        domain = url.split('/')[2]
-        blacklist_result = check_domain_blacklist(domain)
-        
-        params = {'apikey': 'YOUR_VIRUSTOTAL_KEY', 'resource': url}
+        params = {'apikey': 'fff46419e2e3b81e12649cb53d2d4f225584a98981739974eb31b4f8e32cceea', 'resource': url}
         response = requests.get('https://www.virustotal.com/vtapi/v2/url/report', params=params)
         json_response = response.json()
         
@@ -148,44 +121,34 @@ async def scan_url(event):
 async def history(event):
     try:
         if not os.path.exists("scanned_urls.csv"):
+            init_csv()
             await event.reply("No scan history available yet. Use /scan to check URLs.")
             return
-            
+
         try:
             df = pd.read_csv("scanned_urls.csv")
-        except pd.errors.EmptyDataError:
-            await event.reply("No scan history available yet. Use /scan to check URLs.")
-            return
-        except pd.errors.ParserError:
-            await event.reply("Error: History file is corrupted. Use /reset to clear history.")
-            return
+            if df.empty:
+                await event.reply("No scan history available yet. Use /scan to check URLs.")
+                return
+
+            # Get the column names from the DataFrame
+            columns = df.columns.tolist()
             
-        if df.empty:
-            await event.reply("No scan history available yet. Use /scan to check URLs.")
-            return
-            
-        history_text = "📋 Recently Scanned URLs:\n\n"
-        for index, row in df.tail(10).iterrows():
-            try:
-                url = str(row['URL']).strip()
-                status = str(row['Status']).strip()
-                timestamp = str(row['Timestamp']).strip() if 'Timestamp' in row else "N/A"
-                
-                if url and status:
-                    history_text += f"🔗 {url}\n"
-                    history_text += f"📊 Status: {status}\n"
-                    history_text += f"⏰ {timestamp}\n"
-                    history_text += "---------------\n"
-            except KeyError:
-                continue
-        
-        if history_text == "📋 Recently Scanned URLs:\n\n":
-            await event.reply("No valid scan history available.")
-            return
-            
-        await event.reply(history_text)
+            history_text = "📋 Recently Scanned URLs:\n\n"
+            for _, row in df.tail(10).iterrows():
+                history_text += f"🔗 {row[columns[0]]}\n"  # URL
+                history_text += f"📊 Status: {row[columns[1]]}\n"  # Status
+                history_text += f"⏰ {row[columns[2]]}\n"  # Timestamp
+                history_text += "---------------\n"
+
+            await event.reply(history_text)
+        except Exception as e:
+            print(f"Error reading CSV: {e}")
+            await event.reply("Error reading scan history. Please try again.")
+
     except Exception as e:
         print(f"Error in history command: {e}")
+        await event.reply("An error occurred while fetching scan history.")
         await event.reply("An error occurred while fetching scan history. Please try again later.")
 
 # /status Command
